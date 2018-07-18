@@ -27,16 +27,16 @@ def make_network(convs,
                  fcs,
                  padding,
                  lstm,
-                 inpt,
-                 action,
-                 reward,
+                 obs_t,
+                 action_tm1,
+                 reward_t,
                  rnn_state_tuple,
                  num_actions,
                  lstm_unit,
                  scope,
                  reuse=None):
     with tf.variable_scope(scope, reuse=reuse):
-        out = make_convs(inpt, convs, padding)
+        out = make_convs(obs_t, convs, padding)
 
         out = layers.flatten(out)
 
@@ -45,13 +45,13 @@ def make_network(convs,
                 out = layers.fully_connected(
                     out, hidden, activation_fn=tf.nn.relu)
 
-        reward = tf.reshape(reward, [-1, 1])
-        out = tf.concat([out, action, reward], axis=1)
+        reward_t = tf.reshape(reward_t, [-1, 1])
+        out = tf.concat([out, action_tm1, reward_t], axis=1)
 
         with tf.variable_scope('rnn'):
             lstm_cell = tf.contrib.rnn.BasicLSTMCell(lstm_unit, state_is_tuple=True)
             rnn_in = tf.expand_dims(out, [0])
-            step_size = tf.shape(inpt)[:1]
+            step_size = tf.shape(obs_t)[:1]
             lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
                 lstm_cell, rnn_in, initial_state=rnn_state_tuple,
                 sequence_length=step_size, time_major=False)
