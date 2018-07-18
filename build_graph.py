@@ -21,6 +21,25 @@ def build_rp_loss(convs, padding, rp_frame, states, reward):
         labels=reward_one_hot, logits=out)
     return loss
 
+def build_vr_loss(convs,
+                  fcs,
+                  padding,
+                  lstm,
+                  obs,
+                  last_actions,
+                  rewards,
+                  num_actions,
+                  lstm_unit,
+                  target_values):
+    init_state = tf.zeros((1, lstm_unit), dtype=tf.float32)
+    rnn_state_tuple = tf.contrib.rnn.LSTMStateTuple(init_state, init_state)
+    _, value, _ = make_network(convs, fcs, padding, lstm, obs, last_actions,
+                               rewards, rnn_state_tuple, num_actions,
+                               lstm_unit, scope='model', reuse=True)
+    target_values = tf.reshape(target_values, [-1, 1])
+    loss = tf.reduce_sum((target_values - value) ** 2)
+    return loss
+
 def build_train(convs,
                 fcs,
                 padding,
@@ -55,6 +74,12 @@ def build_train(convs,
         rp_obs_ph = tf.placeholder(tf.float32, [rp_frame] + state_shape, name='rp_obs')
         rp_reward_ph = tf.placeholder(tf.int32, [], name='rp_reward')
 
+        # placeholders for value function replay update
+        vr_obs_ph = tf.placeholder(tf.float32, [None] + state_shape, name='vr_obs')
+        vr_last_actions_ph = tf.placeholder(tf.int32, [None], name='vr_last_action')
+        vr_rewards_ph = tf.placeholder(tf.float32, [None], name='vr_reward')
+        vr_target_values_ph = tf.placeholder(tf.float32, [None], name='vr_value')
+
         # rnn state in tuple
         rnn_state_tuple = tf.contrib.rnn.LSTMStateTuple(
             rnn_state_ph0, rnn_state_ph1)
@@ -86,8 +111,14 @@ def build_train(convs,
         rp_loss = build_rp_loss(
             convs, padding, rp_frame, rp_obs_ph, rp_reward_ph)
 
+        vr_last_actions_one_hot = tf.one_hot(
+            vr_last_actions_ph, num_actions, dtype=tf.float32)
+        vr_loss = build_vr_loss(convs, fcs, padding, lstm, vr_obs_ph,
+                                vr_last_actions_one_hot, vr_rewards_ph,
+                                num_actions, lstm_unit, vr_target_values_ph)
+
         # final loss
-        loss = a3c_loss + rp_loss
+        loss = a3c_loss + rp_loss + vr_loss
 
         # local network weights
         local_vars = tf.get_collection(
@@ -113,7 +144,8 @@ def build_train(convs,
             sess.run(update_local_expr)
 
         def train(obs, rnn_state0, rnn_state1, actions, rewards, last_actions,
-                  target_values, advantages, rp_obs, rp_reward, sess=None):
+                  target_values, advantages, rp_obs, rp_reward, vr_obs,
+                  vr_last_actions, vr_rewards, vr_target_values, sess=None):
             if sess is None:
                 sess = tf.get_default_session()
             feed_dict = {
@@ -126,7 +158,11 @@ def build_train(convs,
                 target_values_ph: target_values,
                 advantages_ph: advantages,
                 rp_obs_ph: rp_obs,
-                rp_reward_ph: rp_reward
+                rp_reward_ph: rp_reward,
+                vr_obs_ph: vr_obs,
+                vr_last_actions_ph: vr_last_actions,
+                vr_rewards_ph: vr_rewards,
+                vr_target_values_ph: vr_target_values
             }
             loss_val, _ = sess.run([loss, optimize_expr], feed_dict=feed_dict)
             return loss_val

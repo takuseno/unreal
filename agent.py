@@ -66,6 +66,7 @@ class Agent:
         self.last_obs = deque(self.initial_last_obs, maxlen=rp_frame)
         self.last_action = deque([0, 0], maxlen=2)
         self.last_value = None
+        self.last_reward = 0.0
 
         # buffers
         self.rollout = Rollout()
@@ -86,10 +87,27 @@ class Agent:
         # prepare reward prediction update
         rp_obs, rp_reward = self.buffer.sample_rp()
 
+        # prepare value function replay update
+        vr_obs_t,\
+        vr_actions_tm1,\
+        vr_rewards_t,\
+        is_terminal = self.buffer.sample_vr(self.time_horizon)
+        _, vr_values, _ = self._act(vr_obs_t, vr_actions_tm1, vr_rewards_t,
+                                    self.initial_state, self.initial_state,
+                                    self.sess)
+        vr_values = np.reshape(vr_values, [-1])
+        if is_terminal:
+            vr_bootstrap_value = 0.0
+        else:
+            vr_bootstrap_value = vr_values[-1]
+        vr_v, _ = compute_v_and_adv(vr_rewards_t[:-1], vr_values[:-1],
+                                    vr_bootstrap_value, self.gamma)
+
         # update
         loss = self._train(
             states, self.rollout.features[0][0], self.rollout.features[0][1],
-            actions, rewards[1:], last_actions, v, adv, rp_obs, rp_reward, self.sess)
+            actions, rewards[1:], last_actions, v, adv, rp_obs, rp_reward,
+            vr_obs_t[:-1], vr_actions_tm1[:-1], vr_rewards_t[:-1], vr_v, self.sess)
         self._update_local(self.sess)
         return loss
 
@@ -98,7 +116,7 @@ class Agent:
         obs = self.phi(obs)
         # take next action
         prob, value, rnn_state = self._act(
-            [obs], [self.last_action[0]], [reward],
+            [obs], [self.last_action[1]], [reward],
             self.rnn_state0, self.rnn_state1, self.sess)
         action = np.random.choice(range(len(self.actions)), p=prob[0])
 
@@ -121,8 +139,11 @@ class Agent:
                 # add transition to buffer for auxiliary update
                 self.buffer.add(
                     states=list(self.last_obs),
-                    reward=reward,
-                    next_state=obs,
+                    action_tm1=self.last_action[0],
+                    reward_t=self.last_reward,
+                    action_t=self.last_action[1],
+                    reward_tp1=reward,
+                    state_tp1=obs,
                     terminal=False
                 )
 
@@ -132,9 +153,11 @@ class Agent:
         self.last_obs.append(obs)
         self.last_action.append(action)
         self.last_value = value[0][0]
+        self.last_reward = reward
         return self.actions[action]
 
     def stop_episode(self, obs, reward, training=True):
+        obs = self.phi(obs)
         if training:
             # add transition for A3C update
             self.rollout.add(
@@ -149,8 +172,11 @@ class Agent:
             # add transition for auxiliary update
             self.buffer.add(
                 states=list(self.last_obs),
-                reward=reward,
-                next_state=self.phi(obs),
+                action_tm1=self.last_action[0],
+                reward_t=self.last_reward,
+                action_t=self.last_action[1],
+                reward_tp1=reward,
+                state_tp1=obs,
                 terminal=True
             )
             self.train(0, 0.0)
@@ -160,6 +186,7 @@ class Agent:
         self.last_obs = deque(self.initial_last_obs, maxlen=self.rp_frame)
         self.last_action = deque([0, 0], maxlen=2)
         self.last_value = None
+        self.last_reward = 0.0
         self.t_in_episode = 0
 
     def set_session(self, sess):
