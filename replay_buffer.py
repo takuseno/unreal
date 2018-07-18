@@ -13,7 +13,7 @@ class ReplayBuffer:
         self.episode_terminal_ids = []
 
     # ((s_t-2, s_t-1, s_t), a_t-1, r_t, a_t, r_t+1, s_t+1, t_t+1)
-    def add(self, states, action_tm1, reward_t, action_t, reward_tp1, state_tp1, terminal):
+    def add(self, obs_t, action_tm1, reward_t, action_t, reward_tp1, obs_tp1, terminal):
         # create unique id
         id = uuid.uuid4()
         self.ids.append(id)
@@ -24,17 +24,17 @@ class ReplayBuffer:
 
         # for value function replay and others
         transition = dict(
-            state_t=states[-1],
+            obs_t=obs_t[-1],
             action_tm1=action_tm1,
             reward_t=reward_t,
             action_t=action_t,
             reward_tp1=reward_tp1,
-            state_tp1=state_tp1
+            obs_tp1=obs_tp1
         )
         self.transitions[id] = transition
 
         # for reward prediction
-        reward_prediction_dict = dict(states=states, reward_tp1=reward_tp1)
+        reward_prediction_dict = dict(obs_t=obs_t, reward_tp1=reward_tp1)
         if reward_tp1 == 0.0:
             self.non_rewarding_states[id] = reward_prediction_dict
         else:
@@ -68,7 +68,7 @@ class ReplayBuffer:
             reward_class = 1
         else:
             reward_class = 2
-        return transition['states'], reward_class
+        return transition['obs_t'], reward_class
 
     def sample_sequence(self, n):
         if len(self.episode_terminal_ids) > 0:
@@ -103,14 +103,14 @@ class ReplayBuffer:
     def sample_vr(self, n):
         transitions, is_terminal = self.sample_sequence(n)
         # format results
-        states_t = []
+        obs_t = []
         actions_tm1 = []
         rewards_t = []
         for transition in transitions:
-            states_t.append(transition['state_t'])
+            obs_t.append(transition['obs_t'])
             actions_tm1.append(transition['action_tm1'])
             rewards_t.append(transition['reward_t'])
-        states_t.append(transitions[-1]['state_tp1'])
+        obs_t.append(transitions[-1]['obs_tp1'])
         actions_tm1.append(transitions[-1]['action_t'])
         rewards_t.append(transitions[-1]['reward_tp1'])
-        return states_t, actions_tm1, rewards_t, is_terminal
+        return obs_t, actions_tm1, rewards_t, is_terminal

@@ -164,12 +164,12 @@ class Agent:
                 )
                 # add transition to buffer for auxiliary update
                 self.buffer.add(
-                    states=list(self.last_obs),
+                    obs_t=list(self.last_obs),
                     action_tm1=action_tm2,
                     reward_t=self.reward_tm1,
                     action_t=action_tm1,
                     reward_tp1=reward_t,
-                    state_tp1=obs_t,
+                    obs_tp1=obs_t,
                     terminal=False
                 )
 
@@ -202,12 +202,12 @@ class Agent:
             )
             # add transition for auxiliary update
             self.buffer.add(
-                states=list(self.last_obs),
+                obs_t=list(self.last_obs),
                 action_tm1=action_tm2,
                 reward_t=self.reward_tm1,
                 action_t=action_tm1,
                 reward_tp1=reward_t,
-                state_tp1=obs_t,
+                obs_tp1=obs_t,
                 terminal=True
             )
             self.train(0.0)
