@@ -9,7 +9,7 @@ def normalized_columns_initializer(std=1.0):
         return tf.constant(out)
     return _initializer
 
-def make_convs(inpt, convs, scope, reuse=None):
+def make_convs(inpt, convs, padding, scope, reuse=None):
     out = inpt
     with tf.variable_scope(scope, reuse=reuse):
         for num_outputs, kernel_size, stride in convs:
@@ -36,7 +36,7 @@ def _make_network(convs,
                   scope,
                   reuse=None):
     with tf.variable_scope(scope, reuse=reuse):
-        out = make_convs(inpt, convs, 'convnet')
+        out = make_convs(inpt, convs, padding, 'convnet')
 
         out = layers.flatten(out)
 

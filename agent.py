@@ -1,5 +1,6 @@
 from rlsaber.util import compute_v_and_adv
 from rollout import Rollout
+from replay_buffer import ReplayBuffer
 import build_graph
 import numpy as np
 import tensorflow as tf
@@ -19,6 +20,8 @@ class Agent:
                  entropy_factor=0.01,
                  grad_clip=40.0,
                  state_shape=[84, 84, 1],
+                 buffer_size=2e3,
+                 rp_frame=3,
                  phi=lambda s: s,
                  name='global',
                  sess=None):
@@ -27,6 +30,7 @@ class Agent:
         self.name = name
         self.time_horizon = time_horizon
         self.state_shape = state_shape
+        self.rp_frame = rp_frame
         self.phi = phi
         self.sess = sess
 
@@ -45,15 +49,23 @@ class Agent:
             scope=name
         )
 
+        # rnn state variables
         self.initial_state = np.zeros((1, lstm_unit), np.float32)
         self.rnn_state0 = self.initial_state
         self.rnn_state1 = self.initial_state
-        self.last_obs = None
+
+        # last state variables
+        self.last_obs = deque([
+            np.zeros(state_shape, dtype=np.float32)], maxlen=rp_frame)
         self.last_action = deque([0, 0], maxlen=2)
         self.last_value = None
 
+        # buffers
         self.rollout = Rollout()
+        self.buffer = ReplayBuffer(capacity=buffer_size)
+
         self.t = 0
+        self.t_in_episode = 0
 
     def train(self, bootstrap_value, reward):
         states = np.array(self.rollout.states, dtype=np.float32)
@@ -82,9 +94,10 @@ class Agent:
                 self.train(self.last_value, reward)
                 self.rollout.flush()
 
-            if self.last_obs is not None:
+            if self.t_in_episode > 0:
+                # add transition to buffer for A3C update
                 self.rollout.add(
-                    state=self.last_obs,
+                    state=self.last_obs[-1],
                     reward=reward,
                     action=self.last_action[1],
                     last_action=self.last_action[0],
@@ -92,18 +105,27 @@ class Agent:
                     terminal=False,
                     feature=[self.rnn_state0, self.rnn_state1]
                 )
+                # add transition to buffer for auxiliary update
+                self.buffer.add(
+                    states=list(self.last_obs),
+                    reward=reward,
+                    next_state=obs,
+                    terminal=False
+                )
 
         self.t += 1
+        self.t_in_episode += 1
         self.rnn_state0, self.rnn_state1 = rnn_state
-        self.last_obs = obs
+        self.last_obs.append(obs)
         self.last_action.append(action)
         self.last_value = value[0][0]
         return self.actions[action]
 
     def stop_episode(self, obs, reward, training=True):
         if training:
+            # add transition for A3C update
             self.rollout.add(
-                state=self.last_obs,
+                state=self.last_obs[-1],
                 action=self.last_action[1],
                 reward=reward,
                 last_action=self.last_action[0],
@@ -111,13 +133,22 @@ class Agent:
                 feature=[self.rnn_state0, self.rnn_state1],
                 terminal=True
             )
+            # add transition for auxiliary update
+            self.buffer.add(
+                states=list(self.last_obs),
+                reward=reward,
+                next_state=obs,
+                terminal=True
+            )
             self.train(0, 0.0)
             self.rollout.flush()
         self.rnn_state0 = self.initial_state
         self.rnn_state1 = self.initial_state
-        self.last_obs = None
+        self.last_obs = deque([np.zeros(self.state_shape, dtype=np.float32)],
+                              maxlen=self.rp_frame)
         self.last_action = deque([0, 0], maxlen=2)
         self.last_value = None
+        self.t_in_episode = 0
 
     def set_session(self, sess):
         self.sess = sess

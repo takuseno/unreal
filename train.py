@@ -33,6 +33,8 @@ def make_agent(model, actions, optimizer, state_shape, phi, name, constants):
         entropy_factor=constants.ENTROPY_FACTOR,
         grad_clip=constants.GRAD_CLIP,
         state_shape=state_shape,
+        rp_frame=constants.RP_FRAME,
+        buffer_size=constants.BUFFER_SIZE,
         phi=phi,
         name=name
     )
