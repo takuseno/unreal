@@ -16,15 +16,17 @@ from rlsaber.trainer import Evaluator, Recorder
 from rlsaber.env import EnvWrapper
 from rlsaber.preprocess import atari_preprocess
 from actions import get_action_space
-from network import make_network
 from agent import Agent
 from datetime import datetime
 
-def make_agent(model, actions, optimizer, state_shape, phi, name, constants):
+def make_agent(actions, optimizer, state_shape, phi, name, constants):
     return Agent(
-        model,
         actions,
         optimizer,
+        convs=constants.CONVS,
+        fcs=constants.FCS,
+        padding=constants.PADDING,
+        lstm=constants.LSTM,
         gamma=constants.GAMMA,
         lstm_unit=constants.LSTM_UNIT,
         time_horizon=constants.TIME_HORIZON,
@@ -86,10 +88,6 @@ def main():
     sess = tf.Session()
     sess.__enter__()
 
-    model = make_network(
-        constants.CONVS, constants.FCS,
-        lstm=constants.LSTM, padding=constants.PADDING)
-
     # share Adam optimizer with all threads!
     lr = tf.Variable(constants.LR)
     decayed_lr = tf.placeholder(tf.float32)
@@ -99,9 +97,8 @@ def main():
     else:
         optimizer = tf.train.AdamOptimizer(lr)
 
-
     master = make_agent(
-        model, actions, optimizer, state_shape, phi, 'global', constants)
+        actions, optimizer, state_shape, phi, 'global', constants)
 
     global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
     saver = tf.train.Saver(global_vars)
@@ -113,7 +110,7 @@ def main():
     for i in range(args.threads):
         name = 'worker{}'.format(i)
         agent = make_agent(
-            model, actions, optimizer, state_shape, phi, name, constants)
+            actions, optimizer, state_shape, phi, name, constants)
         agents.append(agent)
         env = gym.make(args.env)
         env.seed(i)

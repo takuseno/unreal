@@ -40,18 +40,28 @@ class ReplayBuffer:
     def remove(self, id):
         if id in self.ids:
             self.ids.remove(id)
-            self.episode_terminal_ids.remove(id)
             self.transitions.pop(id)
-            self.rewarding_states.pop(id)
-            self.non_rewarding_states.pop(id)
+            if id in self.episode_terminal_ids:
+                self.episode_terminal_ids.remove(id)
+            if id in self.rewarding_states:
+                self.rewarding_states.pop(id)
+            if id in self.non_rewarding_states:
+                self.non_rewarding_states.pop(id)
 
     def sample_rp(self):
         prob = random()
         if prob > 0.5 and len(self.rewarding_states.values()) != 0:
-            transition = sample(self.rewarding_states.values(), 1)[0]
+            transition = sample(list(self.rewarding_states.values()), 1)[0]
         else:
-            transition = sample(self.non_rewarding_states.values(), 1)[0]
-        return transition['states'], transition['reward']
+            transition = sample(list(self.non_rewarding_states.values()), 1)[0]
+        reward = transition['reward']
+        if reward == 0.0:
+            reward_class = 0
+        elif reward > 0.0:
+            reward_class = 1
+        else:
+            reward_class = 2
+        return transition['states'], reward_class
 
     def sample_sequence(self, n):
         # get terminal index

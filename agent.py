@@ -9,9 +9,12 @@ from collections import deque
 
 class Agent:
     def __init__(self,
-                 model,
                  actions,
                  optimizer,
+                 convs,
+                 fcs,
+                 padding,
+                 lstm,
                  gamma=0.99,
                  lstm_unit=256,
                  time_horizon=5,
@@ -37,7 +40,10 @@ class Agent:
         self._act,\
         self._train,\
         self._update_local = build_graph.build_train(
-            model=model,
+            convs=convs,
+            fcs=fcs,
+            padding=padding,
+            lstm=lstm,
             num_actions=len(actions),
             optimizer=optimizer,
             lstm_unit=lstm_unit,
@@ -46,6 +52,7 @@ class Agent:
             policy_factor=policy_factor,
             value_factor=value_factor,
             entropy_factor=entropy_factor,
+            rp_frame=rp_frame,
             scope=name
         )
 
@@ -55,8 +62,8 @@ class Agent:
         self.rnn_state1 = self.initial_state
 
         # last state variables
-        self.last_obs = deque([
-            np.zeros(state_shape, dtype=np.float32)], maxlen=rp_frame)
+        self.initial_last_obs = [np.zeros(state_shape, dtype=np.float32) for _ in range(rp_frame)]
+        self.last_obs = deque(self.initial_last_obs, maxlen=rp_frame)
         self.last_action = deque([0, 0], maxlen=2)
         self.last_value = None
 
@@ -68,15 +75,21 @@ class Agent:
         self.t_in_episode = 0
 
     def train(self, bootstrap_value, reward):
+        # prepare A3C update
         states = np.array(self.rollout.states, dtype=np.float32)
         actions = np.array(self.rollout.actions, dtype=np.uint8)
         last_actions = np.array(self.rollout.last_actions, dtype=np.uint8)
         rewards = self.rollout.rewards + [reward]
         values = self.rollout.values
         v, adv = compute_v_and_adv(rewards[:-1], values, bootstrap_value, self.gamma)
+
+        # prepare reward prediction update
+        rp_obs, rp_reward = self.buffer.sample_rp()
+
+        # update
         loss = self._train(
             states, self.rollout.features[0][0], self.rollout.features[0][1],
-            actions, rewards[1:], last_actions, v, adv, self.sess)
+            actions, rewards[1:], last_actions, v, adv, rp_obs, rp_reward, self.sess)
         self._update_local(self.sess)
         return loss
 
@@ -137,15 +150,14 @@ class Agent:
             self.buffer.add(
                 states=list(self.last_obs),
                 reward=reward,
-                next_state=obs,
+                next_state=self.phi(obs),
                 terminal=True
             )
             self.train(0, 0.0)
             self.rollout.flush()
         self.rnn_state0 = self.initial_state
         self.rnn_state1 = self.initial_state
-        self.last_obs = deque([np.zeros(self.state_shape, dtype=np.float32)],
-                              maxlen=self.rp_frame)
+        self.last_obs = deque(self.initial_last_obs, maxlen=self.rp_frame)
         self.last_action = deque([0, 0], maxlen=2)
         self.last_value = None
         self.t_in_episode = 0

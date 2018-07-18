@@ -9,7 +9,7 @@ def normalized_columns_initializer(std=1.0):
         return tf.constant(out)
     return _initializer
 
-def make_convs(inpt, convs, padding, scope, reuse=None):
+def make_convs(inpt, convs, padding, scope='convnet', reuse=None):
     out = inpt
     with tf.variable_scope(scope, reuse=reuse):
         for num_outputs, kernel_size, stride in convs:
@@ -23,20 +23,20 @@ def make_convs(inpt, convs, padding, scope, reuse=None):
             )
     return out
 
-def _make_network(convs,
-                  fcs,
-                  lstm,
-                  padding,
-                  inpt,
-                  action,
-                  reward,
-                  rnn_state_tuple,
-                  num_actions,
-                  lstm_unit,
-                  scope,
-                  reuse=None):
+def make_network(convs,
+                 fcs,
+                 padding,
+                 lstm,
+                 inpt,
+                 action,
+                 reward,
+                 rnn_state_tuple,
+                 num_actions,
+                 lstm_unit,
+                 scope,
+                 reuse=None):
     with tf.variable_scope(scope, reuse=reuse):
-        out = make_convs(inpt, convs, padding, 'convnet')
+        out = make_convs(inpt, convs, padding)
 
         out = layers.flatten(out)
 
@@ -70,6 +70,3 @@ def _make_network(convs,
             weights_initializer=normalized_columns_initializer())
 
     return policy, value, (lstm_state[0][:1, :], lstm_state[1][:1, :])
-
-def make_network(convs, fcs, lstm=True, padding='VALID'):
-    return lambda *args, **kwargs: _make_network(convs, fcs, lstm, padding, *args, **kwargs)
