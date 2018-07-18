@@ -1,6 +1,6 @@
 # DeepMind style
 STATE_SHAPE = [84, 84]
-STATE_WINDOW = 4
+STATE_WINDOW = 1
 CONVS = [[16, 8, 4], [32, 4, 2]]
 PADDING = 'VALID'
 FCS = [256]

@@ -73,14 +73,14 @@ def main():
     else:
         constants = atari_constants
         actions = get_action_space(env_name)
-        state_shape = constants.STATE_SHAPE + [constants.STATE_WINDOW]
+        state_shape = constants.STATE_SHAPE + [3]
         def state_preprocess(state):
             # atari specific preprocessing
-            state = atari_preprocess(state, constants.STATE_SHAPE)
+            state = cv2.resize(state, tuple(constants.STATE_SHAPE))
             state = np.array(state, dtype=np.float32)
             return state / 255.0
         # (window_size, H, W) -> (H, W, window_size)
-        phi = lambda s: np.transpose(s, [1, 2, 0])
+        phi = lambda s: s[0]
 
     # save settings
     dump_constants(constants, os.path.join(outdir, 'constants.json'))
