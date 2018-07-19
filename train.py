@@ -10,12 +10,12 @@ import box_constants
 import numpy as np
 import tensorflow as tf
 
+from baselines.common.atari_wrappers import NoopResetEnv, EpisodicLifeEnv
 from rlsaber.log import TfBoardLogger, dump_constants
 from rlsaber.trainer import AsyncTrainer
 from rlsaber.trainer import Evaluator, Recorder
 from rlsaber.env import EnvWrapper
 from rlsaber.preprocess import atari_preprocess
-from actions import get_action_space
 from agent import Agent
 from datetime import datetime
 
@@ -72,14 +72,13 @@ def main():
     # atari environment
     else:
         constants = atari_constants
-        actions = get_action_space(env_name)
+        actions = range(tmp_env.action_space.n)
         state_shape = constants.STATE_SHAPE + [3]
         def state_preprocess(state):
             # atari specific preprocessing
             state = cv2.resize(state, tuple(constants.STATE_SHAPE))
             state = np.array(state, dtype=np.float32)
             return state / 255.0
-        # (window_size, H, W) -> (H, W, window_size)
         phi = lambda s: s[0]
 
     # save settings
@@ -114,6 +113,8 @@ def main():
         agents.append(agent)
         env = gym.make(args.env)
         env.seed(i)
+        env = NoopResetEnv(env)
+        env = EpisodicLifeEnv(env)
         wrapped_env = EnvWrapper(
             env,
             r_preprocess=lambda r: np.clip(r, -1, 1),
