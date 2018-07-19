@@ -62,7 +62,8 @@ class Agent:
         self.rnn_state1 = self.initial_state
 
         # last state variables
-        self.initial_last_obs = [np.zeros(state_shape, dtype=np.float32) for _ in range(rp_frame)]
+        self.zero_state = np.zeros(state_shape, dtype=np.float32)
+        self.initial_last_obs = [self.zero_state for _ in range(rp_frame)]
         self.last_obs = deque(self.initial_last_obs, maxlen=rp_frame)
         self.last_action = deque([0, 0], maxlen=2)
         self.value_tm1 = None

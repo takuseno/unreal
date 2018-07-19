@@ -91,14 +91,15 @@ class ReplayBuffer:
         # get trajectory
         length = end_index - start_index + 1
         if length > n:
-            sample_start = randrange(length - n + 1) + start_index
-            sample_end = sample_start + n - 1
+            sample_start_index = randrange(length - n + 1) + start_index
+            sample_end_index = sample_start_index + n - 1
         else:
-            sample_start = start_index
-            sample_end = end_index
-        transitions = list(self.transitions.values())[sample_start:sample_end+1]
-        is_terminal = self.ids[sample_end] in self.episode_terminal_ids
-        return transitions, is_terminal
+            sample_start_index = start_index
+            sample_end_index = end_index
+        transitions = list(self.transitions.values())
+        sampled_transitions = transitions[sample_start_index:sample_end_index+1]
+        is_terminal = self.ids[sample_end_index] in self.episode_terminal_ids
+        return sampled_transitions, is_terminal
 
     def sample_vr(self, n):
         transitions, is_terminal = self.sample_sequence(n)
