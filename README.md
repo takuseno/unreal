@@ -8,7 +8,6 @@ https://arxiv.org/abs/1611.05397
 - tensorflow
 - opencv-python
 - git+https://github.com/imai-laboratory/rlsaber
-- git+https://github.com/openai/baselines
 
 ## train
 ```sh

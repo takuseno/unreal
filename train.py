@@ -10,11 +10,10 @@ import box_constants
 import numpy as np
 import tensorflow as tf
 
-from baselines.common.atari_wrappers import NoopResetEnv, EpisodicLifeEnv
 from rlsaber.log import TfBoardLogger, dump_constants
 from rlsaber.trainer import AsyncTrainer
 from rlsaber.trainer import Evaluator, Recorder
-from rlsaber.env import EnvWrapper
+from rlsaber.env import EnvWrapper, NoopResetEnv, EpisodicLifeEnv
 from rlsaber.preprocess import atari_preprocess
 from agent import Agent
 from datetime import datetime
