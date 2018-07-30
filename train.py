@@ -20,6 +20,7 @@ from datetime import datetime
 
 def make_agent(actions,
                optimizer,
+               global_step,
                state_shape,
                phi,
                name,
@@ -29,6 +30,7 @@ def make_agent(actions,
     return Agent(
         actions,
         optimizer,
+        global_step,
         convs=constants.CONVS,
         fcs=constants.FCS,
         padding=constants.PADDING,
@@ -98,14 +100,14 @@ def train(server, cluster, args):
         add_global_step_op = global_step.assign(tf.add(global_step, 1))
 
     # global parameters
-    master = make_agent(actions, optimizer, state_shape, phi, 'global',
-                        shared_device, shared_device, constants)
+    master = make_agent(actions, optimizer, global_step, state_shape, phi,
+                        'global', shared_device, shared_device, constants)
     global_vars = tf.global_variables()
     init_op = tf.variables_initializer(global_vars)
 
     # local parameters
-    agent = make_agent(actions, optimizer, state_shape, phi, 'worker',
-                       shared_device, worker_device, constants)
+    agent = make_agent(actions, optimizer, global_step, state_shape, phi,
+                       'worker', shared_device, worker_device, constants)
     local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'worker')
     local_init_op = tf.variables_initializer(local_vars)
 

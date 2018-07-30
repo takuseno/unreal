@@ -46,6 +46,7 @@ def build_train(convs,
                 lstm,
                 num_actions,
                 optimizer,
+                global_step,
                 lstm_unit=256,
                 state_shape=[84, 84, 1],
                 grad_clip=40.0,
@@ -83,6 +84,9 @@ def build_train(convs,
             vr_actions_tm1_ph = tf.placeholder(tf.int32, [None], name='vr_action_tm1')
             vr_rewards_t_ph = tf.placeholder(tf.float32, [None], name='vr_reward_t')
             vr_returns_t_ph = tf.placeholder(tf.float32, [None], name='vr_returns_t')
+
+            # increment global step
+            inc_step = global_step.assign_add(tf.shape(obs_t_ph)[0])
 
             # rnn state in tuple
             rnn_state_tuple = tf.contrib.rnn.LSTMStateTuple(
@@ -176,7 +180,8 @@ def build_train(convs,
             vr_rewards_t_ph: vr_rewards_t,
             vr_returns_t_ph: vr_returns_t
         }
-        loss_val, _ = sess.run([loss, optimize_expr], feed_dict=feed_dict)
+        loss_val, _, _ = sess.run(
+            [loss, optimize_expr, inc_step], feed_dict=feed_dict)
         return loss_val
 
     def act(obs_t, actions_tm1, rewards_t, rnn_state0, rnn_state1, sess=None):
