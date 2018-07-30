@@ -3,6 +3,8 @@ UNREAL implementation with TensorFlow
 
 https://arxiv.org/abs/1611.05397
 
+Parallel execution is done by Distributed TensorFlow as multithreading is extremely slow with auxiliary tasks because of GIL.
+
 ## dependencies
 - Python3
 - tensorflow
@@ -11,7 +13,7 @@ https://arxiv.org/abs/1611.05397
 
 ## train
 ```sh
-$ python train.py [--env environment_id] [--render]
+$ ./run.sh [-e environment_id] [-r (render)] [-n num_of_processes]
 ```
 
 ## ToDo

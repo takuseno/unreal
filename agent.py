@@ -26,6 +26,8 @@ class Agent:
                  buffer_size=2e3,
                  rp_frame=3,
                  phi=lambda s: s,
+                 shared_device='/cpu:0',
+                 worker_device='/cpu:0',
                  name='global',
                  sess=None):
         self.actions = actions
@@ -53,6 +55,8 @@ class Agent:
             value_factor=value_factor,
             entropy_factor=entropy_factor,
             rp_frame=rp_frame,
+            shared_device=shared_device,
+            worker_device=worker_device,
             scope=name
         )
 
