@@ -93,7 +93,7 @@ def build_train(convs,
 
         actions_t_one_hot = tf.one_hot(actions_t_ph, num_actions, dtype=tf.float32)
         log_policy_t = tf.log(tf.clip_by_value(policy_t, 1e-20, 1.0))
-        log_prob = tf.reduce_sum(log_policy_t * actions_t_one_hot, [1])
+        log_prob = tf.reduce_sum(log_policy_t * actions_t_one_hot, axis=1, keep_dims=True)
 
         # A3C loss
         advantages_t = tf.reshape(advantages_t_ph, [-1, 1])
