@@ -34,8 +34,8 @@ def build_vr_loss(convs,
     init_state = tf.zeros((1, lstm_unit), dtype=tf.float32)
     rnn_state_tuple = tf.contrib.rnn.LSTMStateTuple(init_state, init_state)
     _, value_t, _ = make_network(convs, fcs, padding, lstm, obs_t, actions_tm1,
-                               rewards_t, rnn_state_tuple, num_actions,
-                               lstm_unit, scope='model', reuse=True)
+                                 rewards_t, rnn_state_tuple, num_actions,
+                                 lstm_unit, scope='model', reuse=True)
     returns_t = tf.reshape(returns_t, [-1, 1])
     loss = tf.reduce_sum((returns_t - value_t) ** 2)
     return loss
@@ -71,11 +71,13 @@ def build_train(convs,
         advantages_t_ph = tf.placeholder(tf.float32, [None], name='advantage_t')
 
         # placeholders for reward prediction update
-        rp_obs_ph = tf.placeholder(tf.float32, [rp_frame] + state_shape, name='rp_obs')
+        rp_obs_ph = tf.placeholder(
+            tf.float32, [rp_frame] + state_shape, name='rp_obs')
         rp_reward_tp1_ph = tf.placeholder(tf.int32, [], name='rp_reward_tp1')
 
         # placeholders for value function replay update
-        vr_obs_t_ph = tf.placeholder(tf.float32, [None] + state_shape, name='vr_obs_t')
+        vr_obs_t_ph = tf.placeholder(
+            tf.float32, [None] + state_shape, name='vr_obs_t')
         vr_actions_tm1_ph = tf.placeholder(tf.int32, [None], name='vr_action_tm1')
         vr_rewards_t_ph = tf.placeholder(tf.float32, [None], name='vr_reward_t')
         vr_returns_t_ph = tf.placeholder(tf.float32, [None], name='vr_returns_t')
@@ -93,7 +95,8 @@ def build_train(convs,
 
         actions_t_one_hot = tf.one_hot(actions_t_ph, num_actions, dtype=tf.float32)
         log_policy_t = tf.log(tf.clip_by_value(policy_t, 1e-20, 1.0))
-        log_prob = tf.reduce_sum(log_policy_t * actions_t_one_hot, axis=1, keep_dims=True)
+        log_prob = tf.reduce_sum(
+            log_policy_t * actions_t_one_hot, axis=1, keep_dims=True)
 
         # A3C loss
         advantages_t = tf.reshape(advantages_t_ph, [-1, 1])
@@ -138,16 +141,13 @@ def build_train(convs,
             update_local_expr.append(local_var.assign(global_var))
         update_local_expr = tf.group(*update_local_expr)
 
-        def update_local(sess=None):
-            if sess is None:
-                sess = tf.get_default_session()
+        def update_local():
+            sess = tf.get_default_session()
             sess.run(update_local_expr)
 
-        def train(obs_t, rnn_state0, rnn_state1, actions_t, rewards_t, actions_tm1,
-                  returns_t, advantages_t, rp_obs, rp_reward_tp1, vr_obs_t,
-                  vr_actions_tm1, vr_rewards_t, vr_returns_t, sess=None):
-            if sess is None:
-                sess = tf.get_default_session()
+        def train(obs_t, rnn_state0, rnn_state1, actions_t, rewards_t,
+                  actions_tm1, returns_t, advantages_t, rp_obs, rp_reward_tp1,
+                  vr_obs_t, vr_actions_tm1, vr_rewards_t, vr_returns_t):
             feed_dict = {
                 obs_t_ph: obs_t,
                 rnn_state_ph0: rnn_state0,
@@ -164,12 +164,10 @@ def build_train(convs,
                 vr_rewards_t_ph: vr_rewards_t,
                 vr_returns_t_ph: vr_returns_t
             }
-            loss_val, _ = sess.run([loss, optimize_expr], feed_dict=feed_dict)
-            return loss_val
+            sess = tf.get_default_session()
+            return sess.run([loss, optimize_expr], feed_dict=feed_dict)[0]
 
-        def act(obs_t, actions_tm1, rewards_t, rnn_state0, rnn_state1, sess=None):
-            if sess is None:
-                sess = tf.get_default_session()
+        def act(obs_t, actions_tm1, rewards_t, rnn_state0, rnn_state1):
             feed_dict = {
                 obs_t_ph: obs_t,
                 actions_tm1_ph: actions_tm1,
@@ -177,6 +175,7 @@ def build_train(convs,
                 rnn_state_ph0: rnn_state0,
                 rnn_state_ph1: rnn_state1
             }
+            sess = tf.get_default_session()
             return sess.run([policy_t, value_t, state_out], feed_dict=feed_dict)
 
     return act, train, update_local
