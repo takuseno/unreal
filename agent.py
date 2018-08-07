@@ -88,10 +88,17 @@ class Agent:
         rewards_tp1 = self.rollout.rewards_tp1
         rewards_t = self.rollout.rewards_t
         values_t = self.rollout.values_t
-        v_t, adv_t = compute_v_and_adv(
-            rewards_tp1, values_t, bootstrap_value, self.gamma)
         state_t0 = self.rollout.states_t[0][0]
         state_t1 = self.rollout.states_t[0][1]
+
+        # compute returns
+        R = bootstrap_value
+        returns_t = []
+        for reward in reversed(rewards_tp1):
+            R = reward + self.gamma * R
+            returns_t.append(R)
+        returns_t = np.array(list(reversed(returns_t)))
+        adv_t = returns_t - values_t
 
         # prepare reward prediction update
         rp_obs, rp_reward_tp1 = self.buffer.sample_rp()
@@ -108,8 +115,14 @@ class Agent:
             vr_bootstrap_value = 0.0
         else:
             vr_bootstrap_value = vr_values_t[-1]
-        vr_v_t, _ = compute_v_and_adv(vr_rewards_t[:-1], vr_values_t[:-1],
-                                      vr_bootstrap_value, self.gamma)
+
+        # compute returns for value prediction
+        R = vr_bootstrap_value
+        vr_returns_t = []
+        for reward in reversed(vr_rewards_t[:-1]):
+            R = reward + self.gamma * R
+            vr_returns_t.append(R)
+        vr_returns_t = np.array(list(reversed(vr_returns_t)))
 
         # update
         loss = self._train(
@@ -119,14 +132,14 @@ class Agent:
             actions_t=actions_t,
             rewards_t=rewards_t,
             actions_tm1=actions_tm1,
-            returns_t=v_t,
+            returns_t=returns_t,
             advantages_t=adv_t,
             rp_obs=rp_obs,
             rp_reward_tp1=rp_reward_tp1,
             vr_obs_t=vr_obs_t[:-1],
             vr_actions_tm1=vr_actions_tm1[:-1],
             vr_rewards_t=vr_rewards_t[:-1],
-            vr_returns_t=vr_v_t
+            vr_returns_t=vr_returns_t
         )
         self._update_local()
         return loss
