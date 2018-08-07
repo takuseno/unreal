@@ -29,8 +29,7 @@ class Agent:
                  phi=lambda s: s,
                  shared_device='/cpu:0',
                  worker_device='/cpu:0',
-                 name='global',
-                 sess=None):
+                 name='global'):
         self.actions = actions
         self.gamma = gamma
         self.name = name
@@ -38,7 +37,6 @@ class Agent:
         self.state_shape = state_shape
         self.rp_frame = rp_frame
         self.phi = phi
-        self.sess = sess
 
         self._act,\
         self._train,\
@@ -104,8 +102,7 @@ class Agent:
         vr_rewards_t,\
         is_terminal = self.buffer.sample_vr(self.time_horizon)
         _, vr_values_t, _ = self._act(vr_obs_t, vr_actions_tm1, vr_rewards_t,
-                                      self.initial_state, self.initial_state,
-                                      self.sess)
+                                      self.initial_state, self.initial_state)
         vr_values_t = np.reshape(vr_values_t, [-1])
         if is_terminal:
             vr_bootstrap_value = 0.0
@@ -129,10 +126,9 @@ class Agent:
             vr_obs_t=vr_obs_t[:-1],
             vr_actions_tm1=vr_actions_tm1[:-1],
             vr_rewards_t=vr_rewards_t[:-1],
-            vr_returns_t=vr_v_t,
-            sess=self.sess
+            vr_returns_t=vr_v_t
         )
-        self._update_local(self.sess)
+        self._update_local()
         return loss
 
     def act(self, obs_t, reward_t, training=True):
@@ -147,8 +143,7 @@ class Agent:
             actions_tm1=[action_tm1],
             rewards_t=[reward_t],
             rnn_state0=self.rnn_state0,
-            rnn_state1=self.rnn_state1,
-            sess=self.sess
+            rnn_state1=self.rnn_state1
         )
         action_t = np.random.choice(range(len(self.actions)), p=prob[0])
 
@@ -226,6 +221,3 @@ class Agent:
         self.value_tm1 = None
         self.reward_tm1 = 0.0
         self.t_in_episode = 0
-
-    def set_session(self, sess):
-        self.sess = sess

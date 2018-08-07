@@ -154,16 +154,13 @@ def build_train(convs,
             optimize_expr = optimizer.apply_gradients(
                 zip(gradients, global_vars))
 
-    def update_local(sess=None):
-        if sess is None:
-            sess = tf.get_default_session()
+    def update_local():
+        sess = tf.get_default_session()
         sess.run(update_local_expr)
 
     def train(obs_t, rnn_state0, rnn_state1, actions_t, rewards_t, actions_tm1,
               returns_t, advantages_t, rp_obs, rp_reward_tp1, vr_obs_t,
-              vr_actions_tm1, vr_rewards_t, vr_returns_t, sess=None):
-        if sess is None:
-            sess = tf.get_default_session()
+              vr_actions_tm1, vr_rewards_t, vr_returns_t):
         feed_dict = {
             obs_t_ph: obs_t,
             rnn_state_ph0: rnn_state0,
@@ -180,13 +177,10 @@ def build_train(convs,
             vr_rewards_t_ph: vr_rewards_t,
             vr_returns_t_ph: vr_returns_t
         }
-        loss_val, _, _ = sess.run(
-            [loss, optimize_expr, inc_step], feed_dict=feed_dict)
-        return loss_val
+        sess = tf.get_default_session()
+        return sess.run([loss, optimize_expr, inc_step], feed_dict=feed_dict)[0]
 
-    def act(obs_t, actions_tm1, rewards_t, rnn_state0, rnn_state1, sess=None):
-        if sess is None:
-            sess = tf.get_default_session()
+    def act(obs_t, actions_tm1, rewards_t, rnn_state0, rnn_state1):
         feed_dict = {
             obs_t_ph: obs_t,
             actions_tm1_ph: actions_tm1,
@@ -194,6 +188,7 @@ def build_train(convs,
             rnn_state_ph0: rnn_state0,
             rnn_state_ph1: rnn_state1
         }
+        sess = tf.get_default_session()
         return sess.run([policy_t, value_t, state_out], feed_dict=feed_dict)
 
     return act, train, update_local
