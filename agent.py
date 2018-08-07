@@ -87,7 +87,7 @@ class Agent:
         # compute returns
         R = bootstrap_value
         returns_t = []
-        for reward in reversed(rewards_t):
+        for reward in reversed(rewards_tp1):
             R = reward + self.gamma * R
             returns_t.append(R)
         returns_t = np.array(list(reversed(returns_t)))
